@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabRats — Marco 2</title>
+<style>
+  :root { --vinho:#7A1F4B; --vinho-2:#5d1639; --card:#F5F0F2; --texto:#1A1A1A; --suave:#5A5A5A; --linha:#e2d8dc; --ok:#1f7a4b; --erro:#b3261e; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Calibri,"Segoe UI",system-ui,sans-serif; color:var(--texto); background:#fff; }
+  header { padding:20px 32px 0; }
+  h1 { margin:0; color:var(--vinho); font-size:30px; }
+  .sub { color:var(--suave); margin:2px 0 14px; }
+  #saude { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .pill { font-size:12px; padding:3px 10px; border-radius:999px; background:var(--card); color:var(--suave); }
+  .pill.ok { background:#e3f3ea; color:var(--ok); } .pill.bad { background:#fbe6e4; color:var(--erro); }
+  nav { display:flex; gap:4px; padding:0 32px; border-bottom:1px solid var(--linha); }
+  nav button { border:0; background:none; padding:10px 16px; font:inherit; font-weight:600; color:var(--suave); cursor:pointer; border-bottom:3px solid transparent; }
+  nav button.on { color:var(--vinho); border-bottom-color:var(--vinho); }
+  main { padding:24px 32px 60px; max-width:1100px; }
+  section { display:none; } section.on { display:block; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; }
+  .card { background:var(--card); border-radius:10px; padding:18px; }
+  .card h3 { margin:0 0 10px; font-size:15px; color:var(--vinho); }
+  label { display:block; font-size:12px; color:var(--suave); margin:10px 0 4px; }
+  select, input, textarea { width:100%; padding:8px 10px; border:1px solid var(--linha); border-radius:6px; font:inherit; background:#fff; }
+  button.acao { background:var(--vinho); color:#fff; border:0; padding:10px 16px; border-radius:6px; font:inherit; font-weight:600; cursor:pointer; margin-top:12px; }
+  button.acao:hover { background:var(--vinho-2); } button.sec { background:#fff; color:var(--vinho); border:1px solid var(--vinho); }
+  .linha { display:flex; gap:8px; } .linha > * { flex:1; }
+  .grande { font-size:44px; font-weight:700; color:var(--vinho); line-height:1; }
+  .msg { margin-top:12px; padding:10px 12px; border-radius:6px; background:#fff; font-size:14px; }
+  .msg.ok { border-left:4px solid var(--ok); } .msg.aviso { border-left:4px solid #b7791f; } .msg.erro { border-left:4px solid var(--erro); }
+  table { width:100%; border-collapse:collapse; font-size:14px; } td, th { text-align:left; padding:6px 4px; border-bottom:1px solid var(--linha); }
+  th { color:var(--suave); font-weight:600; font-size:12px; } td.n { text-align:right; font-variant-numeric:tabular-nums; }
+  svg text { font-size:10px; fill:var(--suave); } .vazio { color:var(--suave); font-size:14px; }
+  code { background:#1A1A1A; color:#eee; padding:1px 6px; border-radius:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>LabRats</h1>
+  <div id="saude"></div>
+</header>
+<nav>
+  <button data-aba="checkin" class="on">Check-in</button>
+  <button data-aba="academia">Painel da academia</button>
+  <button data-aba="grupos">Grupos de disputa</button>
+  <button data-aba="admin">Demo / admin</button>
+</nav>
+<main>
+
+<section id="checkin" class="on">
+  <div class="grid">
+    <div class="card">
+      <h3>Totem / app do aluno <small>(Redis + Cassandra)</small></h3>
+      <label>Aluno</label><select id="ci-aluno"></select>
+      <label>Academia</label><select id="ci-academia"></select>
+      <div class="linha"><button class="acao" id="btn-checkin">Fazer check-in</button><button class="acao sec" id="btn-checkout">Checkout</button></div>
+      <div id="ci-msg"></div>
+    </div>
+    <div class="card"><h3>Streak do aluno</h3>
+      <div class="grande" id="ci-streak">–</div><div class="vazio" id="ci-melhor">dias seguidos</div>
+      <h3 style="margin-top:18px">Meu histórico <small>(Cassandra: checkins_por_aluno)</small></h3>
+      <div id="ci-hist" class="vazio">–</div>
+    </div>
+  </div>
+</section>
+
+<section id="academia">
+  <label style="max-width:320px">Academia</label><select id="pn-academia" style="max-width:320px"></select>
+  <div class="grid" style="margin-top:14px">
+    <div class="card"><h3>Na academia agora</h3><div class="grande" id="pn-ocup">–</div><div class="vazio">Sorted Set com expiração por score</div></div>
+    <div class="card"><h3>Ranking semanal de assiduidade</h3><div id="pn-rank" class="vazio">–</div></div>
+  </div>
+  <div class="grid" style="margin-top:16px">
+    <div class="card"><h3>Check-ins por hora — últimos 7 dias</h3><div id="pn-picos"></div><div class="vazio" id="pn-total"></div></div>
+    <div class="card"><h3>Check-ins recentes</h3><div id="pn-recentes" class="vazio">–</div></div>
+  </div>
+</section>
+
+<section id="grupos">
+  <div class="grid">
+    <div class="card">
+      <h3>Grupo de disputa <small>(MongoDB)</small></h3>
+      <label>Grupo</label><select id="gr-sel"></select>
+      <div id="gr-info" class="vazio" style="margin-top:8px"></div>
+      <h3 style="margin-top:16px">Registrar medidas</h3>
+      <label>Aluno (membro)</label><select id="gr-aluno"></select>
+      <div id="gr-campos"></div>
+      <button class="acao" id="btn-registro">Registrar</button><div id="gr-msg"></div>
+      <h3 style="margin-top:18px">Entrar no grupo</h3>
+      <div class="linha"><select id="gr-novo"></select><button class="acao sec" id="btn-entrar" style="margin-top:0">Adicionar</button></div>
+    </div>
+    <div class="card"><h3>Placar (aggregation pipeline)</h3><div id="gr-placar" class="vazio">–</div></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Criar novo grupo — cada grupo escolhe suas próprias métricas</h3>
+    <div class="linha"><div><label>Nome</label><input id="ng-nome" placeholder="Desafio dos Amigos"></div>
+      <div><label>Criador</label><select id="ng-criador"></select></div></div>
+    <label>Métricas, uma por linha: <code>chave,Nome,unidade,modo</code> (modo: maximo | queda | ganho)</label>
+    <textarea id="ng-metricas" rows="3">supino_kg,Carga no supino,kg,maximo
+peso_kg,Perda de peso,kg,queda</textarea>
+    <button class="acao" id="btn-criar">Criar grupo</button><div id="ng-msg"></div>
+  </div>
+</section>
+
+<section id="admin">
+  <div class="card" style="max-width:560px">
+    <h3>Dados de demonstração</h3>
+    <p class="vazio">Cria 3 academias, 30 alunos, 21 dias de histórico (Cassandra), reconstrói streak/ranking (Redis) e um grupo com medidas (MongoDB).</p>
+    <button class="acao" id="btn-seed">Popular dados</button> <div id="ad-msg"></div>
+    <h3 style="margin-top:20px">Reconstruir Redis a partir do Cassandra</h3>
+    <p class="vazio">Prova que o Redis é estado derivado: apague o Redis e refaça streak e ranking.</p>
+    <div class="linha"><select id="ad-acad"></select><button class="acao sec" id="btn-rec" style="margin-top:0">Reconstruir</button></div>
+  </div>
+</section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(url, opts) {
+  const r = await fetch(url, opts && {method: opts.method, headers: {'Content-Type':'application/json'}, body: opts.body ? JSON.stringify(opts.body) : undefined});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail || j));
+  return j;
+}
+const msg = (el, tipo, html) => { $(el).innerHTML = `<div class="msg ${tipo}">${html}</div>`; };
+let alunos = [], academias = [], grupoAtual = null;
+
+// ---------- abas ----------
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === b.dataset.aba));
+  atualizar();
+});
+const aba = () => document.querySelector('nav button.on').dataset.aba;
+
+// ---------- saúde ----------
+async function saude() {
+  try {
+    const h = await api('/health');
+    $('#saude').innerHTML = ['redis','cassandra','mongodb'].map(k => `<span class="pill ${h[k]==='ok'?'ok':'bad'}">${k}: ${esc(h[k])}</span>`).join('') +
+      `<span class="pill ${h.fila_de_falhas? 'bad':''}">fila de falhas: ${h.fila_de_falhas}</span>`;
+  } catch (e) { $('#saude').innerHTML = '<span class="pill bad">API indisponível</span>'; }
+}
+
+// ---------- catálogo ----------
+async function carregarCatalogo() {
+  [alunos, academias] = await Promise.all([api('/alunos'), api('/academias')]);
+  const optA = alunos.map(a => `<option value="${a._id ?? a.id}">${esc(a.nome)} (#${a.id})</option>`).join('');
+  const optC = academias.map(a => `<option value="${a.id}">${esc(a.nome)}</option>`).join('');
+  ['#ci-aluno','#gr-novo','#ng-criador'].forEach(s => $(s).innerHTML = optA);
+  ['#ci-academia','#pn-academia','#ad-acad'].forEach(s => $(s).innerHTML = optC);
+  if (alunos.length) ajustaAcademia();
+}
+function ajustaAcademia() { const a = alunos.find(x => x.id == $('#ci-aluno').value); if (a) $('#ci-academia').value = a.academia_id; }
+$('#ci-aluno').onchange = () => { ajustaAcademia(); carregarAluno(); $('#ci-msg').innerHTML=''; };
+
+// ---------- check-in ----------
+async function carregarAluno() {
+  const id = $('#ci-aluno').value; if (!id) return;
+  const [s, h] = await Promise.all([api(`/alunos/${id}/streak`), api(`/alunos/${id}/historico?limite=6`)]);
+  $('#ci-streak').textContent = s.atual; $('#ci-melhor').textContent = `dias seguidos · melhor sequência: ${s.melhor}`;
+  $('#ci-hist').innerHTML = h.length ? '<table>' + h.map(x => `<tr><td>${new Date(x.data_checkin).toLocaleString('pt-BR')}</td><td class="n">${x.duracao_minutos ? x.duracao_minutos + ' min' : '—'}</td></tr>`).join('') + '</table>' : 'Sem histórico';
+}
+$('#btn-checkin').onclick = async () => {
+  try {
+    const t0 = performance.now();
+    const r = await api('/checkin', {method:'POST', body:{aluno_id:+$('#ci-aluno').value, academia_id:+$('#ci-academia').value}});
+    const ms = Math.round(performance.now() - t0);
+    if (r.status === 'ja_ativo') msg('#ci-msg', 'aviso', `Check-in já ativo (toque duplo ignorado — idempotente). Streak: <b>${r.streak}</b>`);
+    else msg('#ci-msg', 'ok', `Check-in registrado em ${ms} ms. Streak: <b>${r.streak}</b> ${r.novo_dia ? '(novo dia contado no ranking)' : '(mesmo dia: ranking não muda)'}`);
+    setTimeout(carregarAluno, 400);
+  } catch (e) { msg('#ci-msg', 'erro', esc(e.message)); }
+};
+$('#btn-checkout').onclick = async () => {
+  try { const r = await api(`/checkout/${$('#ci-aluno').value}`, {method:'POST'}); msg('#ci-msg','ok',`Treino encerrado: ${r.duracao_minutos} min`); setTimeout(carregarAluno, 400); }
+  catch (e) { msg('#ci-msg','erro',esc(e.message)); }
+};
+
+// ---------- painel ----------
+function barras(horas) {
+  const max = Math.max(1, ...horas), W = 460, H = 130, bw = W / 24;
+  return `<svg viewBox="0 0 ${W} ${H+16}" width="100%" role="img" aria-label="Check-ins por hora">` +
+    horas.map((v,i) => { const h = Math.round(v / max * H); return `<rect x="${i*bw+2}" y="${H-h}" width="${bw-4}" height="${h}" rx="2" fill="${[6,7,18,19].includes(i)?'#7A1F4B':'#c9a9ba'}"><title>${i}h: ${v}</title></rect>` + (i%3===0?`<text x="${i*bw+2}" y="${H+12}">${i}h</text>`:''); }).join('') + '</svg>';
+}
+async function painel() {
+  const id = $('#pn-academia').value; if (!id) return;
+  const [p, r] = await Promise.all([api(`/academias/${id}/painel`), api(`/academias/${id}/ranking`)]);
+  $('#pn-ocup').textContent = p.ocupacao_agora;
+  $('#pn-rank').innerHTML = r.ranking.length ? `<table><tr><th>#</th><th>Aluno</th><th class="n">Dias (${esc(r.semana)})</th></tr>` + r.ranking.map(x => `<tr><td>${x.posicao}</td><td>${esc(x.nome)}</td><td class="n">${x.dias_treinados}</td></tr>`).join('') + '</table>' : 'Ninguém treinou nesta semana ainda';
+  $('#pn-picos').innerHTML = barras(p.picos_por_hora); $('#pn-total').textContent = `${p.total_checkins} check-ins de ${p.de} a ${p.ate} · destaque: janelas 6–8h e 18–20h`;
+  $('#pn-recentes').innerHTML = p.recentes.length ? '<table>' + p.recentes.map(x => `<tr><td>${new Date(x.data_checkin).toLocaleString('pt-BR')}</td><td>aluno #${x.aluno_id}</td><td class="n">${x.duracao_minutos ? x.duracao_minutos+' min' : '—'}</td></tr>`).join('') + '</table>' : 'Sem check-ins no período';
+}
+$('#pn-academia').onchange = painel;
+
+// ---------- grupos ----------
+async function grupos(manter) {
+  const gs = await api('/grupos'); const atual = manter ? $('#gr-sel').value : null;
+  $('#gr-sel').innerHTML = gs.map(g => `<option value="${g.id}">${esc(g.nome)}</option>`).join('');
+  if (atual) $('#gr-sel').value = atual;
+  await verGrupo();
+}
+async function verGrupo() {
+  const id = $('#gr-sel').value; if (!id) { $('#gr-placar').textContent = 'Nenhum grupo — popule os dados ou crie um'; return; }
+  grupoAtual = await api(`/grupos/${id}`);
+  $('#gr-info').textContent = `${grupoAtual.descricao || ''} · ${grupoAtual.membros.length} membros · métricas: ${grupoAtual.metricas.map(m=>m.nome).join(', ')}`;
+  $('#gr-aluno').innerHTML = grupoAtual.membros.map(m => `<option value="${m.aluno_id}">${esc(m.nome)}</option>`).join('');
+  $('#gr-campos').innerHTML = grupoAtual.metricas.map(m => `<label>${esc(m.nome)} (${esc(m.unidade)})</label><input type="number" step="0.1" data-chave="${esc(m.chave)}">`).join('');
+  const p = await api(`/grupos/${id}/placar`);
+  $('#gr-placar').innerHTML = p.placar.map(b => `<b>${esc(b.metrica.nome)}</b> <span class="vazio">(${esc(b.metrica.modo)})</span>` +
+    (b.ranking.length ? '<table>' + b.ranking.map(l => `<tr><td>${l.posicao}</td><td>${esc(l.nome)}</td><td class="n">${l.score} ${esc(b.metrica.unidade)}</td></tr>`).join('') + '</table>' : '<div class="vazio">Sem registros</div>')).join('<br>');
+}
+$('#gr-sel').onchange = verGrupo;
+$('#btn-registro').onclick = async () => {
+  const valores = {}; document.querySelectorAll('#gr-campos input').forEach(i => { if (i.value !== '') valores[i.dataset.chave] = +i.value; });
+  try { await api(`/grupos/${grupoAtual.id}/registros`, {method:'POST', body:{aluno_id:+$('#gr-aluno').value, valores}}); msg('#gr-msg','ok','Medidas registradas'); verGrupo(); }
+  catch (e) { msg('#gr-msg','erro',esc(e.message)); }
+};
+$('#btn-entrar').onclick = async () => {
+  try { await api(`/grupos/${grupoAtual.id}/membros`, {method:'POST', body:{aluno_id:+$('#gr-novo').value}}); msg('#gr-msg','ok','Membro adicionado'); verGrupo(); }
+  catch (e) { msg('#gr-msg','erro',esc(e.message)); }
+};
+$('#btn-criar').onclick = async () => {
+  const metricas = $('#ng-metricas').value.split('\n').map(l => l.split(',').map(s => s.trim())).filter(p => p.length >= 4).map(p => ({chave:p[0], nome:p[1], unidade:p[2], modo:p[3]}));
+  try { await api('/grupos', {method:'POST', body:{nome:$('#ng-nome').value, criador_id:+$('#ng-criador').value, metricas}}); msg('#ng-msg','ok','Grupo criado'); grupos(false); }
+  catch (e) { msg('#ng-msg','erro',esc(e.message)); }
+};
+
+// ---------- admin ----------
+$('#btn-seed').onclick = async () => {
+  msg('#ad-msg','aviso','Populando… (alguns segundos)');
+  try { const r = await api('/admin/seed', {method:'POST'}); msg('#ad-msg','ok',`${r.alunos} alunos, ${r.academias} academias, ${r.checkins_historicos} check-ins históricos`); await carregarCatalogo(); atualizar(); }
+  catch (e) { msg('#ad-msg','erro',esc(e.message)); }
+};
+$('#btn-rec').onclick = async () => {
+  try { const r = await api(`/admin/reconstruir/${$('#ad-acad').value}`, {method:'POST'}); msg('#ad-msg','ok',`Redis reconstruído: ${r.alunos} alunos, ${r.no_ranking} no ranking de ${esc(r.semana)}`); }
+  catch (e) { msg('#ad-msg','erro',esc(e.message)); }
+};
+
+function atualizar() { saude(); if (aba()==='checkin') carregarAluno(); if (aba()==='academia') painel(); if (aba()==='grupos') grupos(true); }
+(async () => { await saude(); try { await carregarCatalogo(); } catch(e) {} atualizar(); setInterval(() => { saude(); if (aba()==='academia') painel(); }, 3000); })();
+</script>
+</body>
+</html>
